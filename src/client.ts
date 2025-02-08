@@ -5,11 +5,6 @@ import OpenAI from "openai";
 
 const openai = new OpenAI();
 
-const transport = new StdioClientTransport({
-    command: "node",
-    args: ["build/server.js"]
-});
-
 const client = new Client(
     {
         name: "client-mcp",
@@ -24,11 +19,20 @@ const client = new Client(
     }
 );
 
+const transport = new StdioClientTransport({
+    command: "node",
+    args: ["build/server.js"]
+});
+
+
 await client.connect(transport);
 
+// on récupère le nom du pays à résumer
 const country = process.argv[2];
+
 // Liste des prompts
 const prompts = await client.listPrompts();
+// Récupération du prompt pour pour résumer les informations sur un pays
 const prompt = await client.getPrompt({
     name: "summary-on-country",
     arguments: { country }
@@ -45,17 +49,17 @@ const completionWithoutTool = await createCompletion([
     },
 ]);
 
+function createCompletion(messages: any, tools?: any) {
+    return openai.chat.completions.create({
+        model: "gpt-4o",
+        messages,
+        tools,
+        store: true,
+    });
+}
+
 console.log(`------------SUMMARY ABOUT ${country}------------`)
 console.log(completionWithoutTool.choices[0].message.content);
-console.log("-------------YOUR TODOS-----------------");
-const messages = [
-    { role: "system", content: "You are a helpful assistant." },
-    {
-        role: "user",
-        content: `What are my 4 latest todos`
-    },
-];
-
 
 
 const toolsList = await client.listTools();
@@ -71,18 +75,31 @@ const tools = toolsList.tools.map(tool => {
         }
     }
 });
+
+const messages = [
+    { role: "system", content: "You are a helpful assistant." },
+    {
+        role: "user",
+        content: `What are my 4 latest todos`
+    },
+];
+
 const completionWithTools = await createCompletion(messages, tools);
 
+// On vérifie s'il y a une fonction à appeler
 if (completionWithTools.choices[0].message.tool_calls) {
 
+    // Récupérer des informations de la fonction (nom, arguments)
     const toolCall = completionWithTools.choices[0].message.tool_calls[0];
     const args = JSON.parse(toolCall.function.arguments);
 
+    // On appelle la fonction
     const result = await client.callTool({
         name: toolCall.function.name,
         arguments: args
     });
 
+    // On ajoute les messages de la fonction à la liste des messages
     //@ts-ignore
     messages.push(completionWithTools?.choices[0].message);
     messages.push({
@@ -92,20 +109,17 @@ if (completionWithTools.choices[0].message.tool_calls) {
         content: result.content
     });
 
+    // On appelle le modèle pour générer la réponse
     const completion2 = await createCompletion(messages, tools);
 
+    console.log();
+    console.log();
+    console.log("-------------YOUR TODOS-----------------");
     console.log(completion2.choices[0].message.content);
 
 }
 
-function createCompletion(messages: any, tools?: any) {
-    return openai.chat.completions.create({
-        model: "gpt-4o",
-        messages,
-        tools,
-        store: true,
-    });
-}
+
 
 
 

@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 
-// Crée un serveur MCP
+//Créer un serveur MCP
 const server = new McpServer({
     name: "monServeurMCP",
     version: "1.0.0",
@@ -64,10 +64,9 @@ server.prompt(
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("MCP serveur en cours d'exécution...");
 }
-//Exécution du serveur
 
+//Exécution du serveur
 main().catch((error) => {
     console.error("Fatal error in main():", error);
     process.exit(1);
